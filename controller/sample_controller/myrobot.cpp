@@ -1,5 +1,7 @@
 ﻿#include "myrobot.h"
 
+#include <iostream>
+
 using namespace std;
 
 namespace cnoid{
@@ -125,9 +127,23 @@ void MyRobot::Init(SimpleControllerIO* io){
     footstep.steps[0].foot_pos[0] = foot[0].pos_ref;
     footstep.steps[0].foot_pos[1] = foot[1].pos_ref;
     footstep.steps[0].dcm = centroid.dcm_ref;
+    std::cerr << "00 footstep(pre)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
     footstep_planner.Plan(param, footstep);
+    std::cerr << "00 footstep(after Plan)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
     footstep_planner.GenerateDCM(param, footstep);
-
+    std::cerr << "00 footstep(after GenDCM)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
     footstep_buffer.steps.push_back(footstep.steps[0]);
     footstep_buffer.steps.push_back(footstep.steps[1]);
 
@@ -185,6 +201,7 @@ void MyRobot::Control(){
 		// erase current footsteps
 		while(footstep.steps.size() > 2)
 			footstep.steps.pop_back();
+    std::cerr << "add steps : " << timer.count << std::endl;
 
 		Step step;
 		step.stride   = 0.1; //-max_stride*joystick.getPosition(Joystick::L_STICK_V_AXIS);
@@ -198,13 +215,33 @@ void MyRobot::Control(){
 		step.stride = 0.0;
 		step.turn   = 0.0;
 		footstep.steps.push_back(step);
-		
-		footstep_planner.Plan(param, footstep);
-        footstep_planner.GenerateDCM(param, footstep);
+
+    std::cerr << "footstep(pre)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
+    //
+    footstep_planner.Plan(param, footstep);
+    //
+    std::cerr << "footstep(after Plan)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
+    //
+    footstep_planner.GenerateDCM(param, footstep);
+    //
+    std::cerr << "footstep(after GenDCM)" << std::endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        printStep(footstep.steps[i]);
+    }
+    std::cerr << std::endl;
 	}
 
     // stepping controller generates swing foot trajectory 
     // it also performs landing position adaptation
+  std::cerr << "stepping_controller : " << timer.count << std::endl;
     stepping_controller.Update(timer, param, footstep, footstep_buffer, centroid, base, foot);
     
     // stabilizer performs balance feedback
