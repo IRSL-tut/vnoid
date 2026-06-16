@@ -12,6 +12,7 @@ endif()
 
 add_subdirectory(src)
 add_subdirectory(controller)
+add_subdirectory(vnoid_python)
 
 if(VNOID_BUILD_CNOID)
 	add_subdirectory(plugin)
