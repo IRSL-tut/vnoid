@@ -30,12 +30,16 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
     //// *A*
     cerr << "enter *A*" << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     for(int i = 0; i < footstep_buffer.steps.size(); i++) {
-        cerr << "bsteps[" << i << "]" << std::endl;
+        cerr << "bsteps[" << i << "]" << endl;
         printStep(footstep_buffer.steps[i]);
+    }
+    for(int i = 0; i < foot.size(); i++) {
+        cerr << "foot[" << i << "]"  << endl;
+        printFoot(foot[i]);
     }
     if(buffer_ready){
         cerr << "buffer_ready" << endl;
@@ -93,12 +97,16 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
     //// *B*
     cerr << "enter *B* : " << footstep.steps.size() << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     for(int i = 0; i < footstep_buffer.steps.size(); i++) {
-        cerr << "bsteps[" << i << "]" << std::endl;
+        cerr << "bsteps[" << i << "]" << endl;
         printStep(footstep_buffer.steps[i]);
+    }
+    for(int i = 0; i < foot.size(); i++) {
+        cerr << "foot[" << i << "]"  << endl;
+        printFoot(foot[i]);
     }
     if(footstep.steps.size() < 2){
         return;
@@ -161,12 +169,16 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
     //// *D*
     cerr << "enter *D*" << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     for(int i = 0; i < footstep_buffer.steps.size(); i++) {
-        cerr << "bsteps[" << i << "]" << std::endl;
+        cerr << "bsteps[" << i << "]" << endl;
         printStep(footstep_buffer.steps[i]);
+    }
+    for(int i = 0; i < foot.size(); i++) {
+        cerr << "foot[" << i << "]"  << endl;
+        printFoot(foot[i]);
     }
     // landing adjustment based on dcm
     // predict dcm at landing
@@ -190,6 +202,20 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
     foot[sup].ori_ref     = FromRollPitchYaw(foot[sup].angle_ref);
     foot[sup].contact_ref = true;
 
+    ////
+    cerr << "before *E*" << endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        cerr << "steps[" << i << "]" << endl;
+        printStep(footstep.steps[i]);
+    }
+    for(int i = 0; i < footstep_buffer.steps.size(); i++) {
+        cerr << "bsteps[" << i << "]" << endl;
+        printStep(footstep_buffer.steps[i]);
+    }
+    for(int i = 0; i < foot.size(); i++) {
+        cerr << "foot[" << i << "]"  << endl;
+        printFoot(foot[i]);
+    }
     // set swing foot position
     if(!stb0.stepping || time_to_landing > (stb0.duration - dsp_duration)){
         //// *E-1*
@@ -239,12 +265,16 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         foot[swg].angle_ref = ToRollPitchYaw(foot[swg].ori_ref);
     }
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     for(int i = 0; i < footstep_buffer.steps.size(); i++) {
-        cerr << "bsteps[" << i << "]" << std::endl;
+        cerr << "bsteps[" << i << "]" << endl;
         printStep(footstep_buffer.steps[i]);
+    }
+    for(int i = 0; i < foot.size(); i++) {
+        cerr << "foot[" << i << "]"  << endl;
+        printFoot(foot[i]);
     }
     cerr << "End Of Update" << endl;
 }

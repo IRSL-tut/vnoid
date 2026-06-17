@@ -83,7 +83,7 @@ class Foot:
     pos_ref: np.ndarray = None       # 参考位置
     angle_ref: np.ndarray = None     # 参考角度 [roll, pitch, yaw]
     ori_ref: R = None                # 参考向き
-    contact_ref: bool = True         # 接触フラグ
+    contact_ref: bool = False        # 接触フラグ
 #>bool        contact;      ///< current contact state (true if foot is in contact with the ground)
 #>bool        contact_ref;  ///< reference contact state
 #>double      balance;      ///< current balance ratio [0.0, 1.0].  indicates the ratio of vertical reaction force applied to this foot
@@ -113,6 +113,16 @@ class Foot:
         if self.ori_ref is None:
             self.ori_ref = R.from_euler('xyz', [0, 0, 0])
 
+def fmtVec3(vec3):
+    return f'({vec3[0]:.6f}, {vec3[1]:.6f}, {vec3[2]:.6f} )'
+
+def printFoot(foot, prefix=""):
+    if foot.contact_ref:
+        print(f'{prefix}contact_ref:\t{1}')
+    else:
+        print(f'{prefix}contact_ref:\t{0}')
+    print(f'{prefix}pos_ref:\t' + fmtVec3(foot.pos_ref))
+    print(f'{prefix}angle_ref:\t' + fmtVec3(foot.angle_ref))
 
 class SteppingController:
     """リアルタイム足の軌跡制御"""
@@ -140,6 +150,10 @@ class SteppingController:
         for idx, step in enumerate(footstep_buffer.steps):
             print(f'bsteps[{idx}]')
             printStep(step, 'footstep_buffer.steps[i].')
+        for idx, ft in enumerate(foot):
+            print(f'foot[{idx}]')
+            printFoot(ft, 'foot[i].')
+
         if self.buffer_ready:
             print("buffer_ready")
             st0 = footstep.steps[0]
@@ -182,6 +196,10 @@ class SteppingController:
         for idx, step in enumerate(footstep_buffer.steps):
             print(f'bsteps[{idx}]')
             printStep(step, 'footstep_buffer.steps[i].')
+        for idx, ft in enumerate(foot):
+            print(f'foot[{idx}]')
+            printFoot(ft, 'foot[i].')
+
         #if len(footstep.steps) < 2 or len(footstep_buffer.steps) < 2:
         if len(footstep.steps) < 2:
             return
@@ -248,6 +266,10 @@ class SteppingController:
         for idx, step in enumerate(footstep_buffer.steps):
             print(f'bsteps[{idx}]')
             printStep(step, 'footstep_buffer.steps[i].')
+        for idx, ft in enumerate(foot):
+            print(f'foot[{idx}]')
+            printFoot(ft, 'foot[i].')
+
         # 着地時の DCM を予測
         land_dcm = (stb0.zmp + offset) + np.exp(self.time_to_landing / T) * \
                    (centroid.dcm_ref - (stb0.zmp + offset))
@@ -269,6 +291,16 @@ class SteppingController:
         foot[sup].ori_ref = R.from_euler('xyz', foot[sup].angle_ref)
         foot[sup].contact_ref = True
 
+        print("before *E*")
+        for idx, step in enumerate(footstep.steps):
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        for idx, step in enumerate(footstep_buffer.steps):
+            print(f'bsteps[{idx}]')
+            printStep(step, 'footstep_buffer.steps[i].')
+        for idx, ft in enumerate(foot):
+            print(f'foot[{idx}]')
+            printFoot(ft, 'foot[i].')
         # スウィング足の位置を設定
         if not stb0.stepping or self.time_to_landing > (stb0.duration - self.dsp_duration):
             print("enter *E-1*")
@@ -317,4 +349,7 @@ class SteppingController:
         for idx, step in enumerate(footstep_buffer.steps):
             print(f'bsteps[{idx}]')
             printStep(step, 'footstep_buffer.steps[i].')
+        for idx, ft in enumerate(foot):
+            print(f'foot[{idx}]')
+            printFoot(ft, 'foot[i].')
         print("End Of Update")
