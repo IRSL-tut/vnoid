@@ -191,7 +191,9 @@ class WalkingControl:
         self.timer    = Timer()
         self.centroid = Centroid()
         self.centroid.com_pos_ref = np.array([0., 0., self.param.com_height])
-        self.centroid.dcm_ref = np.array([0., 0., self.param.com_height])
+        self.centroid.com_pos     = np.array([0., 0., self.param.com_height])
+        self.centroid.dcm_target  = np.array([0., 0., self.param.com_height])
+        self.centroid.dcm_ref     = np.array([0., 0., self.param.com_height])
         self.base     = Base()
         self.feet     = [Foot(), Foot()]  # [左足, 右足]
 
