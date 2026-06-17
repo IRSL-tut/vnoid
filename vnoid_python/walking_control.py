@@ -233,18 +233,20 @@ class WalkingControl:
         self.footstep = Footstep(steps=lst)
         print('00 footstep(pre)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
         self.footstep_planner.plan(self.param, self.footstep)
         print('00 footstep(after Plan)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
         self.footstep_planner.generate_dcm(self.param, self.footstep)
         print('00 footstep(after GenDCM)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        print("")
+
         self.footstep_buffer = Footstep(steps=[self.footstep.steps[0].copy(), self.footstep.steps[1].copy()])
 
         ## vnoid/controller/sample_controller/myrobot.cpp // inside Control
@@ -267,22 +269,23 @@ class WalkingControl:
 
         print('footstep(pre)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
 
         self.footstep_planner.plan(self.param, self.footstep);
 
         print('footstep(after Plan)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
 
         self.footstep_planner.generate_dcm(self.param, self.footstep);
 
-        print('footstep(GenDCM)')
+        print('footstep(after GenDCM)')
         for idx, step in enumerate(self.footstep.steps):
-            print(f'Step: {idx}')
-            printStep(step)
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        print("")
 
     def step_simulation(self):
         """シミュレーションを1ステップ進める"""

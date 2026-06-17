@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List
 from scipy.spatial.transform import Rotation as R
 # TODO R => coordinates
-from footstep_planner import Step, Footstep, Param, Ground, rotate_vector
+from footstep_planner import Step, Footstep, Param, Ground, rotate_vector, printStep
 
 # TODO pos + angle => coordinates
 
@@ -132,19 +132,21 @@ class SteppingController:
         T = param.T
         offset = np.array([0.0, 0.0, param.com_height])
 
-        # 最初にステップ数の確認と、正しい参照（st0, st1, stb0, stb1）の固定
-        if len(footstep.steps) < 2 or len(footstep_buffer.steps) < 2:
-            return
-
-        st0 = footstep.steps[0]
-        st1 = footstep.steps[1]
-        stb0 = footstep_buffer.steps[0]
-        stb1 = footstep_buffer.steps[1]
-
-        sup = st0.side
-        swg = 1 - st0.side
-
+        ## *A*
+        print("enter *A*")
+        for idx, step in enumerate(footstep.steps):
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        for idx, step in enumerate(footstep_buffer.steps):
+            print(f'bsteps[{idx}]')
+            printStep(step, 'footstep_buffer.steps[i].')
         if self.buffer_ready:
+            print("buffer_ready")
+            st0 = footstep.steps[0]
+            st1 = footstep.steps[1]
+            stb0 = footstep_buffer.steps[0]
+            stb1 = footstep_buffer.steps[1]
+
             t_ref = timer.time - stb0.tbegin
             alpha_ref = np.exp(t_ref / T)
 
@@ -161,7 +163,7 @@ class SteppingController:
                 if len(footstep.steps) > 1:
                     footstep.steps.pop(0)
                     if len(footstep.steps) == 1:
-                        print("end of footstep reached")
+                        print("### end of footstep reached ###")
                         return
 
                 footstep_buffer.steps[1].dcm = footstep_buffer.steps[0].dcm.copy()
@@ -169,26 +171,45 @@ class SteppingController:
                 footstep_buffer.steps.append(Step())
 
                 self.buffer_ready = False
-
-                # バッファがポップされたため、stb0, stb1 を再取得
-                stb0 = footstep_buffer.steps[0]
-                stb1 = footstep_buffer.steps[1]
             else:
                 centroid.dcm_target = (stb0.zmp + offset) + alpha_ref * (stb0.dcm - (stb0.zmp + offset))
 
+        ## *B*
+        print(f'enter *B* : {len(footstep.steps)}')
+        for idx, step in enumerate(footstep.steps):
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        for idx, step in enumerate(footstep_buffer.steps):
+            print(f'bsteps[{idx}]')
+            printStep(step, 'footstep_buffer.steps[i].')
+        #if len(footstep.steps) < 2 or len(footstep_buffer.steps) < 2:
+        if len(footstep.steps) < 2:
+            return
+
+        ## *C*
+        print("enter *C*")
+        st0 = footstep.steps[0]
+        st1 = footstep.steps[1]
+        stb0 = footstep_buffer.steps[0]
+        stb1 = footstep_buffer.steps[1]
+        sup = st0.side
+        swg = 1 - st0.side
+
         if not self.buffer_ready:
+            print("!buffer_ready")
             stb0.side = st0.side
             stb1.side = st1.side
+
             stb0.stepping = st0.stepping
             stb0.duration = st0.duration
 
-            stb0.foot_pos[sup] = foot[sup].pos_ref.copy()
+            stb0.foot_pos  [sup] = foot[sup].pos_ref.copy()
             stb0.foot_angle[sup] = np.array([0.0, 0.0, foot[sup].angle_ref[2]])
-            stb0.foot_ori[sup] = R.from_euler('xyz', stb0.foot_angle[sup])
+            stb0.foot_ori  [sup] = R.from_euler('xyz', stb0.foot_angle[sup])
 
-            stb0.foot_pos[swg] = foot[swg].pos_ref.copy()
+            stb0.foot_pos  [swg] = foot[swg].pos_ref.copy()
             stb0.foot_angle[swg] = np.array([0.0, 0.0, foot[swg].angle_ref[2]])
-            stb0.foot_ori[swg] = R.from_euler('xyz', stb0.foot_angle[swg])
+            stb0.foot_ori  [swg] = R.from_euler('xyz', stb0.foot_angle[swg])
 
             stb0.dcm = centroid.dcm_ref.copy()
 
@@ -198,16 +219,15 @@ class SteppingController:
             pos_rel = ori_rel_inv.apply(st1.foot_pos[swg] - st0.foot_pos[sup])
             dcm_rel = ori_rel_inv.apply(st1.dcm - st0.foot_pos[sup])
 
-            stb1.foot_pos[sup] = stb0.foot_pos[sup].copy()
-            stb1.foot_ori[sup] = stb0.foot_ori[sup]
+            stb1.foot_pos  [sup] = stb0.foot_pos  [sup].copy()
+            stb1.foot_ori  [sup] = R.from_quat(stb0.foot_ori  [sup].as_quat()) ## = stb0.foot_ori  [sup]
             stb1.foot_angle[sup] = stb0.foot_angle[sup].copy()
-
-            stb1.foot_pos[swg] = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(pos_rel)
-            stb1.foot_ori[swg] = stb0.foot_ori[sup] * ori_rel
+            stb1.foot_pos  [swg] = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(pos_rel)
+            stb1.foot_ori  [swg] = stb0.foot_ori[sup] * ori_rel
             stb1.foot_angle[swg] = stb1.foot_ori[swg].as_euler('xyz')
-
             stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(dcm_rel)
 
+            ## calc zmp
             alpha = np.exp(stb0.duration / T)
             if abs(alpha - 1.0) > eps:
                 stb0.zmp = (1.0 / (alpha - 1.0)) * (alpha * stb0.dcm - stb1.dcm) - offset
@@ -215,10 +235,19 @@ class SteppingController:
                 stb0.zmp = stb0.dcm.copy()
 
             centroid.zmp_target = stb0.zmp.copy()
+            ## store current time
             stb0.tbegin = timer.time
+            ## default time-to-landing
             self.time_to_landing = stb0.duration
             self.buffer_ready = True
 
+        print("enter *D*")
+        for idx, step in enumerate(footstep.steps):
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        for idx, step in enumerate(footstep_buffer.steps):
+            print(f'bsteps[{idx}]')
+            printStep(step, 'footstep_buffer.steps[i].')
         # 着地時の DCM を予測
         land_dcm = (stb0.zmp + offset) + np.exp(self.time_to_landing / T) * \
                    (centroid.dcm_ref - (stb0.zmp + offset))
@@ -242,13 +271,13 @@ class SteppingController:
 
         # スウィング足の位置を設定
         if not stb0.stepping or self.time_to_landing > (stb0.duration - self.dsp_duration):
-            ###
+            print("enter *E-1*")
             foot[swg].pos_ref = stb0.foot_pos[swg].copy()
             foot[swg].angle_ref = stb0.foot_angle[swg].copy()
             foot[swg].ori_ref = stb0.foot_ori[swg]
             foot[swg].contact_ref = True
         else:
-            ##
+            print("enter *E-2*")
             ts = (stb0.duration - self.dsp_duration) - self.time_to_landing
             tauv = stb0.duration - self.dsp_duration
             tauh = tauv - self.descend_duration
@@ -282,3 +311,10 @@ class SteppingController:
             foot[swg].pos_ref = qrel.apply(foot[swg].pos_ref - pivot) + pivot
             foot[swg].ori_ref = qrel * foot[swg].ori_ref
             foot[swg].angle_ref = foot[swg].ori_ref.as_euler('xyz')
+        for idx, step in enumerate(footstep.steps):
+            print(f'steps[{idx}]')
+            printStep(step, 'footstep.steps[i].')
+        for idx, step in enumerate(footstep_buffer.steps):
+            print(f'bsteps[{idx}]')
+            printStep(step, 'footstep_buffer.steps[i].')
+        print("End Of Update")

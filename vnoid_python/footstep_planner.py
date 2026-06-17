@@ -59,20 +59,27 @@ class Step:
                     foot_pos=np.array(self.foot_pos), foot_angle=np.array(self.foot_angle),
                     dcm=np.array(self.dcm), zmp=np.array(self.zmp) )
 
-def printStep(step):
-    print(f'step.stride:\t{step.stride}')
-    print(f'step.sway:\t{step.sway}')
-    print(f'step.spacing:\t{step.spacing}')
-    print(f'step.turn:\t{step.turn}')
-    print(f'step.climb:\t{step.climb}')
-    print(f'step.duration:\t{step.duration}')
-    print(f'step.side:\t{step.side}')
-    print(f'step.stepping:\t{step.stepping}')
-    print(f'step.tbegin:\t{step.tbegin}')
-    print(f'step.foot_pos[0]:\t{step.foot_pos[0]}')
-    print(f'step.foot_pos[1]:\t{step.foot_pos[1]}')
-    print(f'step.zmp:\t{step.zmp}')
-    print(f'step.dcm:\t{step.dcm}')
+def fmtVec3(vec3):
+    return f'({vec3[0]:.6f}, {vec3[1]:.6f}, {vec3[2]:.6f} )'
+
+def printStep(step, prefix='step.'):
+    print(f'{prefix}stride:\t{step.stride:.6f}')
+    print(f'{prefix}sway:\t{step.sway:.6f}')
+    print(f'{prefix}spacing:\t{step.spacing:.6f}')
+    print(f'{prefix}turn:\t{step.turn:.6f}')
+    print(f'{prefix}climb:\t{step.climb:.6f}')
+    print(f'{prefix}duration:\t{step.duration:.6f}')
+    print(f'{prefix}side:\t{step.side}')
+    #print(f'{prefix}stepping:\t{step.stepping}')
+    if step.stepping:
+        print(f'{prefix}stepping:\t{1}')
+    else:
+        print(f'{prefix}stepping:\t{0}')
+    print(f'{prefix}tbegin:\t{step.tbegin:.6f}')
+    print(f'{prefix}foot_pos[0]:\t' + fmtVec3(step.foot_pos[0]))
+    print(f'{prefix}foot_pos[1]:\t' + fmtVec3(step.foot_pos[1]))
+    print(f'{prefix}zmp:\t'+ fmtVec3(step.zmp))
+    print(f'{prefix}dcm:\t'+ fmtVec3(step.dcm))
 
 ## TODO using coordinates
 @dataclass
