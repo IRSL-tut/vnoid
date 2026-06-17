@@ -35,19 +35,32 @@ public:
     Step(double _stride = 0.0, double _sway = 0.0, double _spacing = 0.0, double _turn = 0.0, double _climb = 0.0, double _duration = 0.5, int _side = 0);
 };
 
-#define _printVector3(variable) \
-    std::cerr << #variable ;           \
-    std::cerr << ":\t( ";                 \
-    std::cerr << variable.x() << ", "; \
-    std::cerr << variable.y() << ", "; \
-    std::cerr << variable.z() << " )" << std::endl;
+#define _printVector3Only(variable)                                   \
+    cerr << "(";                                                      \
+    cerr << fixed << setprecision(6) << variable.x() << ", ";         \
+    cerr << fixed << setprecision(6) << variable.y() << ", ";         \
+    cerr << fixed << setprecision(6) << variable.z() << " )" << endl;
 
-#define _printVar(variable)                     \
-    std::cerr << #variable << " :\t";           \
-    std::cerr << variable << std::endl;
+#define _printVector3(variable)                 \
+    cerr << #variable << ":\t";                 \
+    _printVector3Only(variable);
+
+#define _printVector3Prefix(prefix, variable)   \
+    cerr << prefix;                             \
+    _printVector3Only(variable);
+
+#define _printVarOnly(variable) \
+    cerr << fixed << setprecision(6) << variable << endl;
+
+#define _printVar(variable)                               \
+    cerr << #variable << ":\t";                           \
+    _printVarOnly(variable);
+
+#define _printVarPrefix(prefix, variable)       \
+    cerr << prefix;                             \
+    _printVarOnly(variable)
 
 #define printStep(step)                           \
-    std::cerr << "Step: " << #step << std::endl;  \
     _printVar(step.stride);                       \
     _printVar(step.sway);                         \
     _printVar(step.spacing);                      \

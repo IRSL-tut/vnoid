@@ -3,6 +3,8 @@
 #include "robot_base.h"
 #include "footstep.h"
 #include "rollpitchyaw.h"
+#include <iostream>
+#include <iomanip>
 
 namespace cnoid{
 namespace vnoid{
@@ -24,15 +26,26 @@ SteppingController::SteppingController(){
 void SteppingController::Update(const Timer& timer, const Param& param, Footstep& footstep, Footstep& footstep_buffer, Centroid& centroid, Base& base, vector<Foot>& foot){
     double T  = param.T;
     Vector3 offset(0.0, 0.0, param.com_height);
-    
+
+    //// *A*
+    cerr << "enter *A*" << endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        cerr << "steps[" << i << "]" << std::endl;
+        printStep(footstep.steps[i]);
+    }
+    for(int i = 0; i < footstep_buffer.steps.size(); i++) {
+        cerr << "bsteps[" << i << "]" << std::endl;
+        printStep(footstep_buffer.steps[i]);
+    }
     if(buffer_ready){
+        cerr << "buffer_ready" << endl;
         double alpha, alpha_ref, t_dcm, t_ref;
 
         Step& st0  = footstep.steps[0];
         Step& st1  = footstep.steps[1];
         Step& stb0 = footstep_buffer.steps[0];
         Step& stb1 = footstep_buffer.steps[1];
-    
+
         // elapsed time based on timer
         t_ref = timer.time - stb0.tbegin;
 
@@ -54,16 +67,16 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         t_dcm = T*log(alpha);
 
         // time to landing
-	    time_to_landing = stb0.duration - t_dcm;
-    
+        time_to_landing = stb0.duration - t_dcm;
+
         if(time_to_landing <= 0.0){
             if(footstep.steps.size() > 1){
                 // pop step just completed from the footsteps
                 footstep.steps.pop_front();
                 if(footstep.steps.size() == 1){
-		            printf("end of footstep reached\n");
+                    printf("### end of footstep reached ###\n");
                     return;
-	            }
+                }
             }
 
             footstep_buffer.steps[1].dcm = footstep_buffer.steps[0].dcm;
@@ -76,18 +89,32 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
             centroid.dcm_target = (stb0.zmp + offset) + alpha_ref*(stb0.dcm - (stb0.zmp + offset));
         }
     }
-    if(footstep.steps.size() < 2){
-		return;
-	}
 
+    //// *B*
+    cerr << "enter *B* : " << footstep.steps.size() << endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        cerr << "steps[" << i << "]" << std::endl;
+        printStep(footstep.steps[i]);
+    }
+    for(int i = 0; i < footstep_buffer.steps.size(); i++) {
+        cerr << "bsteps[" << i << "]" << std::endl;
+        printStep(footstep_buffer.steps[i]);
+    }
+    if(footstep.steps.size() < 2){
+        return;
+    }
+
+    //// *C*
+    cerr << "enter *C*" << endl;
     Step& st0  = footstep.steps[0];
     Step& st1  = footstep.steps[1];
     Step& stb0 = footstep_buffer.steps[0];
     Step& stb1 = footstep_buffer.steps[1];
     int sup =  st0.side;
     int swg = !st0.side;
-	
+
     if(!buffer_ready){
+        cerr << "!buffer_ready" << endl;
         // update support, lift-off, and landing positions
         stb0.side = st0.side;
         stb1.side = st1.side;
@@ -102,7 +129,7 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         stb0.foot_angle[swg] = Vector3(0.0, 0.0, foot[swg].angle_ref.z());
         stb0.foot_ori  [swg] = FromRollPitchYaw(stb0.foot_angle[swg]);
         stb0.dcm = centroid.dcm_ref;
-    
+
         // landing position relative to support foot, taken from footsteps
         Quaternion ori_rel = st0.foot_ori[sup].conjugate()* st1.foot_ori[swg];
         Vector3    pos_rel = st0.foot_ori[sup].conjugate()*(st1.foot_pos[swg] - st0.foot_pos[sup]);
@@ -131,19 +158,29 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         buffer_ready = true;
     }
 
+    //// *D*
+    cerr << "enter *D*" << endl;
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        cerr << "steps[" << i << "]" << std::endl;
+        printStep(footstep.steps[i]);
+    }
+    for(int i = 0; i < footstep_buffer.steps.size(); i++) {
+        cerr << "bsteps[" << i << "]" << std::endl;
+        printStep(footstep_buffer.steps[i]);
+    }
     // landing adjustment based on dcm
     // predict dcm at landing
     Vector3 land_dcm = (stb0.zmp + offset) + exp(time_to_landing/T)*(centroid.dcm_ref - (stb0.zmp + offset));
-    
+
     // landing adjustment based on dcm
     stb1.foot_pos[swg].x() = land_dcm.x() - (st1.dcm.x() - st1.foot_pos[swg].x());
-	stb1.foot_pos[swg].y() = land_dcm.y() - (st1.dcm.y() - st1.foot_pos[swg].y());
+    stb1.foot_pos[swg].y() = land_dcm.y() - (st1.dcm.y() - st1.foot_pos[swg].y());
 
     // reference base orientation is set as the middle of feet orientation
     double angle_diff = foot[1].angle_ref.z() - foot[0].angle_ref.z();
     while(angle_diff >  pi) angle_diff -= 2.0*pi;
     while(angle_diff < -pi) angle_diff += 2.0*pi;
-	base.angle_ref.z() = foot[0].angle_ref.z() + angle_diff/2.0;
+    base.angle_ref.z() = foot[0].angle_ref.z() + angle_diff/2.0;
 
     base.ori_ref   = FromRollPitchYaw(base.angle_ref);
 
@@ -155,12 +192,15 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
 
     // set swing foot position
     if(!stb0.stepping || time_to_landing > (stb0.duration - dsp_duration)){
+        //// *E-1*
+        cerr << "enter *E-1*" << endl;
         foot[swg].pos_ref     = stb0.foot_pos  [swg];
         foot[swg].angle_ref   = stb0.foot_angle[swg];
         foot[swg].ori_ref     = stb0.foot_ori  [swg];
         foot[swg].contact_ref = true;
-    }
-    else{
+    } else {
+        //// *E-2*
+        cerr << "enter *E-2*" << endl;
         double ts   = (stb0.duration - dsp_duration) - time_to_landing;
         double tauv = stb0.duration - dsp_duration; //< duration of vertical movement
         double tauh = tauv - descend_duration;     //< duration of horizontal movement
@@ -198,6 +238,15 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         foot[swg].ori_ref   = qrel* foot[swg].ori_ref;
         foot[swg].angle_ref = ToRollPitchYaw(foot[swg].ori_ref);
     }
+    for(int i = 0; i < footstep.steps.size(); i++) {
+        cerr << "steps[" << i << "]" << std::endl;
+        printStep(footstep.steps[i]);
+    }
+    for(int i = 0; i < footstep_buffer.steps.size(); i++) {
+        cerr << "bsteps[" << i << "]" << std::endl;
+        printStep(footstep_buffer.steps[i]);
+    }
+    cerr << "End Of Update" << endl;
 }
 
 }
