@@ -5,6 +5,7 @@
 #include "rollpitchyaw.h"
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 namespace cnoid{
 namespace vnoid{
@@ -29,6 +30,10 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
 
     //// *A*
     cerr << "enter *A*" << endl;
+    _printVector3(centroid.dcm_ref);
+    _printVector3(centroid.dcm_target);
+    _printVector3(centroid.zmp_ref);
+    _printVector3(centroid.zmp_target);
     for(int i = 0; i < footstep.steps.size(); i++) {
         cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
@@ -67,9 +72,8 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
          * if w is zero, then alpha = ||xi||/||xi0||, t_dcm = T log ||xi|| - T log ||xi0||, which means timing is purely determined based on DCM and elapsed time is ignored
          */
         double w = timing_adaptation_weight;
-        alpha = (w*w*alpha_ref + xi0.norm()*xi.norm())/(w*w + xi0.squaredNorm());
+        alpha = ((w*w*alpha_ref) + (xi0.norm()*xi.norm()))/((w*w) + xi0.squaredNorm());
         t_dcm = T*log(alpha);
-
         // time to landing
         time_to_landing = stb0.duration - t_dcm;
 
@@ -77,12 +81,13 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
             if(footstep.steps.size() > 1){
                 // pop step just completed from the footsteps
                 footstep.steps.pop_front();
+                cerr << "#1# pop footstep.steps" << endl;
                 if(footstep.steps.size() == 1){
-                    printf("### end of footstep reached ###\n");
+                    printf("#3# end of footstep reached ###\n");
                     return;
                 }
             }
-
+            cerr << "#2# pop/push footstep_buffer.steps" << endl;
             footstep_buffer.steps[1].dcm = footstep_buffer.steps[0].dcm;
             footstep_buffer.steps.pop_front();
             footstep_buffer.steps.push_back(Step());
@@ -182,8 +187,13 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
     }
     // landing adjustment based on dcm
     // predict dcm at landing
+    _printVector3(stb0.zmp);
+    _printVector3(offset);
+    _printVector3(centroid.dcm_ref);
     Vector3 land_dcm = (stb0.zmp + offset) + exp(time_to_landing/T)*(centroid.dcm_ref - (stb0.zmp + offset));
-
+    _printVar(time_to_landing);
+    _printVar(T);
+    _printVector3(land_dcm);
     // landing adjustment based on dcm
     stb1.foot_pos[swg].x() = land_dcm.x() - (st1.dcm.x() - st1.foot_pos[swg].x());
     stb1.foot_pos[swg].y() = land_dcm.y() - (st1.dcm.y() - st1.foot_pos[swg].y());
@@ -276,6 +286,10 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         cerr << "foot[" << i << "]"  << endl;
         printFoot(foot[i]);
     }
+    _printVector3(centroid.dcm_ref);
+    _printVector3(centroid.dcm_target);
+    _printVector3(centroid.zmp_ref);
+    _printVector3(centroid.zmp_target);
     cerr << "End Of Update" << endl;
 }
 

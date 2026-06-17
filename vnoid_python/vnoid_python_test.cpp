@@ -52,6 +52,7 @@ int main(void)
     return -1;
 #endif
 
+    timer.dt = 0.01; //// set dt here
     param.total_mass = 50.0;
     param.com_height =  0.70;
     param.gravity    =  9.8;
@@ -79,19 +80,19 @@ int main(void)
     footstep.steps[0].dcm = centroid.dcm_ref;
     cerr << "00 footstep(pre)" << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     footstep_planner.Plan(param, footstep);
     cerr << "00 footstep(after Plan)" << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     footstep_planner.GenerateDCM(param, footstep);
     cerr << "00 footstep(after GenDCM)" << endl;
     for(int i = 0; i < footstep.steps.size(); i++) {
-        cerr << "steps[" << i << "]" << std::endl;
+        cerr << "steps[" << i << "]" << endl;
         printStep(footstep.steps[i]);
     }
     cerr << endl;
@@ -128,7 +129,7 @@ int main(void)
 
         cerr << "footstep(pre)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
         //
@@ -136,7 +137,7 @@ int main(void)
         //
         cerr << "footstep(after Plan)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
         //
@@ -144,7 +145,7 @@ int main(void)
         //
         cerr << "footstep(after GenDCM)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
         cerr << endl;
@@ -173,7 +174,7 @@ int main(void)
 
         cerr << "footstep(pre)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
         //
@@ -181,7 +182,7 @@ int main(void)
         //
         cerr << "footstep(after Plan)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
         //
@@ -189,12 +190,12 @@ int main(void)
         //
         cerr << "footstep(after GenDCM)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
-            cerr << "steps[" << i << "]" << std::endl;
+            cerr << "steps[" << i << "]" << endl;
             printStep(footstep.steps[i]);
         }
     }
 #endif
-    cerr << "stepping_controller : " << timer.count << endl;
+    cerr << "stepping_controller : [" << timer.count << "] : " << fixed << setprecision(4) << timer.time << " (" << timer.dt << ")" << std::endl;
     stepping_controller.Update(timer, param, footstep, footstep_buffer, centroid, base, foot);
 
     //// stabilizer performs balance feedback

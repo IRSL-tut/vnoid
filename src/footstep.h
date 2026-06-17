@@ -60,6 +60,17 @@ public:
     cerr << prefix;                             \
     _printVarOnly(variable)
 
+#define _printVarPOnly(variable) \
+    cerr << fixed << setprecision(14) << variable << endl;
+
+#define _printVarP(variable)                               \
+    cerr << #variable << ":\t";                           \
+    _printVarPOnly(variable);
+
+#define _printVarPPrefix(prefix, variable)       \
+    cerr << prefix;                             \
+    _printVarPOnly(variable)
+
 #define printStep(step)                           \
     _printVar(step.stride);                       \
     _printVar(step.sway);                         \

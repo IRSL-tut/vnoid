@@ -6,7 +6,7 @@ from stepping_controller import SteppingController, Timer, Centroid, Base, Foot
 
 class WalkingControl:
 
-    def __init__(self, dt=0.02, render=True):
+    def __init__(self, dt=0.01, render=True):
         """
         初期化
 
@@ -19,7 +19,7 @@ class WalkingControl:
         # self.scene = None
         # self.robot = None
         # self.viewer = None
-        self.time = 0.0
+        # self.time = 0.0
 
         # ロボット固有のパラメータ
         #self.joint_names = []
@@ -188,11 +188,18 @@ class WalkingControl:
     def _setup_stepping_controller(self, spacing=0.1):
         """SteppingController を初期化"""
         self.stepping_controller = SteppingController()
+        ##// init stepping controller
+        self.stepping_controller.swing_height = 0.05;
+        self.stepping_controller.swing_tilt   = 0.0;
+        self.stepping_controller.dsp_duration = 0.05;
+        self.stepping_controller.timing_adaptation_weight = 0.1;
+
         self.timer    = Timer()
+        self.timer.dt = self.dt
         self.centroid = Centroid()
         self.centroid.com_pos_ref = np.array([0., 0., self.param.com_height])
         self.centroid.com_pos     = np.array([0., 0., self.param.com_height])
-        self.centroid.dcm_target  = np.array([0., 0., self.param.com_height])
+        #self.centroid.dcm_target  = np.array([0., 0., self.param.com_height])
         self.centroid.dcm_ref     = np.array([0., 0., self.param.com_height])
         self.base     = Base()
         self.feet     = [Foot(), Foot()]  # [左足, 右足]
@@ -293,11 +300,11 @@ class WalkingControl:
         """シミュレーションを1ステップ進める"""
         try:
             if hasattr(self, 'stepping_controller') and self.stepping_controller:
-                self.timer.time = self.time
+                ##self.timer.time = self.time
 
                 # 決定論的（オープンループ）に歩行させるため、前回の出力を今回の参照としてフィードバック
-                self.centroid.dcm_ref = self.centroid.dcm_target.copy()
-                self.centroid.zmp_ref = self.centroid.zmp_target.copy()
+                ## self.centroid.dcm_ref = self.centroid.dcm_target.copy()
+                ## self.centroid.zmp_ref = self.centroid.zmp_target.copy()
 
                 # 軌道更新
                 self.stepping_controller.update(
@@ -317,7 +324,8 @@ class WalkingControl:
             print(f"Warning in stepping controller: {e}")
 
         #> self.scene.step()
-        self.time += self.dt
+        #self.time += self.dt
+        self.timer.CountUp()
 
 #>    def _update_joint_targets_from_feet(self):
 #>        """足の目標位置・姿勢から逆運動学(IK)を計算して関節角を一括制御"""

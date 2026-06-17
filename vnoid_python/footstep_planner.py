@@ -62,6 +62,9 @@ class Step:
 def fmtVec3(vec3):
     return f'({vec3[0]:.6f}, {vec3[1]:.6f}, {vec3[2]:.6f} )'
 
+def printVec3(vec3, prefix=''):
+    print(prefix + fmtVec3(vec3))
+
 def printStep(step, prefix='step.'):
     print(f'{prefix}stride:\t{step.stride:.6f}')
     print(f'{prefix}sway:\t{step.sway:.6f}')

@@ -2,13 +2,13 @@
 Stepping Controller - C++ の stepping_controller.cpp を Python に変換
 リアルタイムの足の軌跡制御と DCM ベースのステップ調整
 """
-
+import math
 import numpy as np
 from dataclasses import dataclass
 from typing import List
 from scipy.spatial.transform import Rotation as R
 # TODO R => coordinates
-from footstep_planner import Step, Footstep, Param, Ground, rotate_vector, printStep
+from footstep_planner import Step, Footstep, Param, Ground, rotate_vector, printStep, printVec3
 
 # TODO pos + angle => coordinates
 
@@ -19,6 +19,11 @@ eps = 1.0e-10
 class Timer:
     """タイマー情報"""
     time: float = 0.0
+    count: int = 0
+    dt: float = 0.001
+    def CountUp(self):
+        self.count += 1
+        self.time += self.dt
 
 @dataclass
 class Centroid:
@@ -39,9 +44,9 @@ class Centroid:
 
     def __post_init__(self):
         if self.dcm_ref is None:
-            self.dcm_ref = np.array([0.0, 0.0, 0.8])
+            self.dcm_ref = np.array([0.0, 0.0, 0.0])
         if self.dcm_target is None:
-            self.dcm_target = np.array([0.0, 0.0, 0.8])
+            self.dcm_target = np.array([0.0, 0.0, 0.0])
         if self.zmp_ref is None:
             self.zmp_ref = np.array([0.0, 0.0, 0.0])
         if self.zmp_target is None:
@@ -138,12 +143,17 @@ class SteppingController:
         self.buffer_ready = False
         self.time_to_landing = 0.0
 
+        self.debug = True
     def update(self, timer: Timer, param: Param, footstep: Footstep, footstep_buffer: Footstep, centroid: Centroid, base: Base, foot: List[Foot]):
         T = param.T
         offset = np.array([0.0, 0.0, param.com_height])
 
         ## *A*
         print("enter *A*")
+        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+        printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
+        printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
+        printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
         for idx, step in enumerate(footstep.steps):
             print(f'steps[{idx}]')
             printStep(step, 'footstep.steps[i].')
@@ -162,27 +172,28 @@ class SteppingController:
             stb1 = footstep_buffer.steps[1]
 
             t_ref = timer.time - stb0.tbegin
-            alpha_ref = np.exp(t_ref / T)
+            alpha_ref = math.exp(t_ref / T)
 
             xi0 = stb0.dcm[:2] - stb0.zmp[:2]
             xi = centroid.dcm_ref[:2] - stb0.zmp[:2]
 
             w = self.timing_adaptation_weight
-            alpha = (w * w * alpha_ref + np.linalg.norm(xi0) * np.linalg.norm(xi)) / (w * w + np.dot(xi0, xi0))
-            t_dcm = T * np.log(alpha)
+            alpha = ((w * w * alpha_ref) + (np.linalg.norm(xi0) * np.linalg.norm(xi))) / ((w * w) + np.dot(xi0, xi0))
+            t_dcm = T * math.log(alpha)
 
             self.time_to_landing = stb0.duration - t_dcm
 
             if self.time_to_landing <= 0.0:
                 if len(footstep.steps) > 1:
                     footstep.steps.pop(0)
+                    print("#1# pop footstep.steps")
                     if len(footstep.steps) == 1:
-                        print("### end of footstep reached ###")
+                        print("#3# end of footstep reached ###")
                         return
-
+                print("#2# pop/push footstep_buffer.steps")
                 footstep_buffer.steps[1].dcm = footstep_buffer.steps[0].dcm.copy()
                 footstep_buffer.steps.pop(0)
-                footstep_buffer.steps.append(Step())
+                footstep_buffer.steps.append(Step(stride=0.0, sway=0.0, spacing=0.0, turn=0.0, climb=0.0, duration=0.5, side=0))
 
                 self.buffer_ready = False
             else:
@@ -271,9 +282,13 @@ class SteppingController:
             printFoot(ft, 'foot[i].')
 
         # 着地時の DCM を予測
-        land_dcm = (stb0.zmp + offset) + np.exp(self.time_to_landing / T) * \
-                   (centroid.dcm_ref - (stb0.zmp + offset))
-
+        printVec3(stb0.zmp, "stb0.zmp:\t")
+        printVec3(offset, "offset:\t")
+        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+        land_dcm = (stb0.zmp + offset) + math.exp(self.time_to_landing / T) * (centroid.dcm_ref - (stb0.zmp + offset))
+        print(f'time_to_landing:\t{self.time_to_landing:.6f}')
+        print(f'T:\t{T:.6f}')
+        printVec3(land_dcm, "land_dcm:\t")
         # 着地調整（DCM ベース） - ここで st1 が本来の footstep.steps[1] を正しく参照するようになります
         stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
         stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
@@ -352,4 +367,8 @@ class SteppingController:
         for idx, ft in enumerate(foot):
             print(f'foot[{idx}]')
             printFoot(ft, 'foot[i].')
+        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+        printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
+        printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
+        printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
         print("End Of Update")
