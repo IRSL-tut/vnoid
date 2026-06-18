@@ -149,7 +149,7 @@ class SteppingController:
         self.buffer_ready = False
         self.time_to_landing = 0.0
 
-        self.debug = True
+        self.debug = 4 #
         self.use_land_estimation = True
 
     def update(self, timer: Timer, param: Param, footstep: Footstep, footstep_buffer: Footstep, centroid: Centroid, base: Base, foot: List[Foot]):
@@ -157,23 +157,25 @@ class SteppingController:
         offset = np.array([0.0, 0.0, param.com_height])
 
         ## *A*
-        print("enter *A*")
-        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
-        printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
-        printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
-        printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
-        for idx, step in enumerate(footstep.steps):
-            print(f'steps[{idx}]')
-            printStep(step, 'footstep.steps[i].')
-        for idx, step in enumerate(footstep_buffer.steps):
-            print(f'bsteps[{idx}]')
-            printStep(step, 'footstep_buffer.steps[i].')
-        for idx, ft in enumerate(foot):
-            print(f'foot[{idx}]')
-            printFoot(ft, 'foot[i].')
+        if self.debug > 2:
+            print("enter *A*")
+            printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+            printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
+            printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
+            printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
+            for idx, step in enumerate(footstep.steps):
+                print(f'steps[{idx}]')
+                printStep(step, 'footstep.steps[i].')
+            for idx, step in enumerate(footstep_buffer.steps):
+                print(f'bsteps[{idx}]')
+                printStep(step, 'footstep_buffer.steps[i].')
+            for idx, ft in enumerate(foot):
+                print(f'foot[{idx}]')
+                printFoot(ft, 'foot[i].')
 
         if self.buffer_ready:
-            print("buffer_ready")
+            if self.debug > 1:
+                print("buffer_ready")
             #*001*st0 = footstep.steps[0]
             #*001*st1 = footstep.steps[1]
             stb0 = footstep_buffer.steps[0]
@@ -194,11 +196,14 @@ class SteppingController:
             if self.time_to_landing <= 0.0:
                 if len(footstep.steps) > 1:
                     footstep.steps.pop(0)
-                    print("#1# pop footstep.steps")
+                    if self.debug > 1:
+                        print("#1# pop footstep.steps")
                     if len(footstep.steps) == 1:
-                        print("#3# end of footstep reached ###")
-                        return
-                print("#2# pop/push footstep_buffer.steps")
+                        if self.debug > 1:
+                            print("#3# end of footstep reached ###")
+                        return False
+                if self.debug > 1:
+                   print("#2# pop/push footstep_buffer.steps")
                 footstep_buffer.steps[1].dcm = footstep_buffer.steps[0].dcm.copy()
                 footstep_buffer.steps.pop(0)
                 footstep_buffer.steps.append(Step(stride=0.0, sway=0.0, spacing=0.0, turn=0.0, climb=0.0, duration=0.5, side=0))
@@ -208,23 +213,25 @@ class SteppingController:
                 centroid.dcm_target = (stb0.zmp + offset) + alpha_ref * (stb0.dcm - (stb0.zmp + offset))
 
         ## *B*
-        print(f'enter *B* : {len(footstep.steps)}')
-        for idx, step in enumerate(footstep.steps):
-            print(f'steps[{idx}]')
-            printStep(step, 'footstep.steps[i].')
-        for idx, step in enumerate(footstep_buffer.steps):
-            print(f'bsteps[{idx}]')
-            printStep(step, 'footstep_buffer.steps[i].')
-        for idx, ft in enumerate(foot):
-            print(f'foot[{idx}]')
-            printFoot(ft, 'foot[i].')
+        if self.debug > 2:
+            print(f'enter *B* : {len(footstep.steps)}')
+            for idx, step in enumerate(footstep.steps):
+                print(f'steps[{idx}]')
+                printStep(step, 'footstep.steps[i].')
+            for idx, step in enumerate(footstep_buffer.steps):
+                print(f'bsteps[{idx}]')
+                printStep(step, 'footstep_buffer.steps[i].')
+            for idx, ft in enumerate(foot):
+                print(f'foot[{idx}]')
+                printFoot(ft, 'foot[i].')
 
         #if len(footstep.steps) < 2 or len(footstep_buffer.steps) < 2:
         if len(footstep.steps) < 2:
-            return
+            return False
 
         ## *C*
-        print("enter *C*")
+        if self.debug > 2:
+            print("enter *C*")
         st0 = footstep.steps[0]
         st1 = footstep.steps[1]
         stb0 = footstep_buffer.steps[0]
@@ -233,7 +240,8 @@ class SteppingController:
         swg = 1 - st0.side
 
         if not self.buffer_ready:
-            print("!buffer_ready")
+            if self.debug > 1:
+                print("!buffer_ready")
             stb0.side = st0.side
             stb1.side = st1.side
 
@@ -254,7 +262,8 @@ class SteppingController:
             ori_rel = ori_rel_inv * st1.foot_ori[swg]
             pos_rel = ori_rel_inv.apply(st1.foot_pos[swg] - st0.foot_pos[sup])
             dcm_rel = ori_rel_inv.apply(st1.dcm - st0.foot_pos[sup])
-            printVec3(dcm_rel, "dcm_rel:\t")
+            if self.debug > 3:
+                printVec3(dcm_rel, "dcm_rel:\t")
             stb1.foot_pos  [sup] = stb0.foot_pos  [sup].copy()
             stb1.foot_ori  [sup] = R.from_quat(stb0.foot_ori  [sup].as_quat()) ## = stb0.foot_ori  [sup]
             stb1.foot_angle[sup] = stb0.foot_angle[sup].copy()
@@ -262,7 +271,8 @@ class SteppingController:
             stb1.foot_ori  [swg] = stb0.foot_ori[sup] * ori_rel
             stb1.foot_angle[swg] = stb1.foot_ori[swg].as_euler('xyz')
             stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(dcm_rel)
-            printVec3(stb1.dcm, "stb1.dcm:\t")
+            if self.debug > 3:
+                printVec3(stb1.dcm, "stb1.dcm:\t")
             ## calc zmp
             alpha = np.exp(stb0.duration / T)
             if abs(alpha - 1.0) > eps:
@@ -277,26 +287,31 @@ class SteppingController:
             self.time_to_landing = stb0.duration
             self.buffer_ready = True
 
-        print("enter *D*")
-        for idx, step in enumerate(footstep.steps):
-            print(f'steps[{idx}]')
-            printStep(step, 'footstep.steps[i].')
-        for idx, step in enumerate(footstep_buffer.steps):
-            print(f'bsteps[{idx}]')
-            printStep(step, 'footstep_buffer.steps[i].')
-        for idx, ft in enumerate(foot):
-            print(f'foot[{idx}]')
-            printFoot(ft, 'foot[i].')
+        if self.debug > 2:
+            print("enter *D*")
+            for idx, step in enumerate(footstep.steps):
+                print(f'steps[{idx}]')
+                printStep(step, 'footstep.steps[i].')
+            for idx, step in enumerate(footstep_buffer.steps):
+                print(f'bsteps[{idx}]')
+                printStep(step, 'footstep_buffer.steps[i].')
+            for idx, ft in enumerate(foot):
+                print(f'foot[{idx}]')
+                printFoot(ft, 'foot[i].')
 
         if self.use_land_estimation:
             # 着地時の DCM を予測
-            printVec3(stb0.zmp, "stb0.zmp:\t")
-            printVec3(offset, "offset:\t")
-            printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+            if self.debug > 3:
+                printVec3(stb0.zmp, "stb0.zmp:\t")
+                printVec3(offset, "offset:\t")
+                printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+            ##
             land_dcm = (stb0.zmp + offset) + math.exp(self.time_to_landing / T) * (centroid.dcm_ref - (stb0.zmp + offset))
-            print(f'time_to_landing:\t{self.time_to_landing:.6f}')
-            print(f'T:\t{T:.6f}')
-            printVec3(land_dcm, "land_dcm:\t")
+            ##
+            if self.debug > 3:
+                print(f'time_to_landing:\t{self.time_to_landing:.6f}')
+                print(f'T:\t{T:.6f}')
+                printVec3(land_dcm, "land_dcm:\t")
             # 着地調整（DCM ベース） - ここで st1 が本来の footstep.steps[1] を正しく参照するようになります
             stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
             stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
@@ -318,26 +333,29 @@ class SteppingController:
         foot[sup].ori_ref   = R.from_euler('xyz', foot[sup].angle_ref)
         foot[sup].contact_ref = True
 
-        print("before *E*")
-        for idx, step in enumerate(footstep.steps):
-            print(f'steps[{idx}]')
-            printStep(step, 'footstep.steps[i].')
-        for idx, step in enumerate(footstep_buffer.steps):
-            print(f'bsteps[{idx}]')
-            printStep(step, 'footstep_buffer.steps[i].')
-        for idx, ft in enumerate(foot):
-            print(f'foot[{idx}]')
-            printFoot(ft, 'foot[i].')
+        if self.debug > 2:
+            print("before *E*")
+            for idx, step in enumerate(footstep.steps):
+                print(f'steps[{idx}]')
+                printStep(step, 'footstep.steps[i].')
+            for idx, step in enumerate(footstep_buffer.steps):
+                print(f'bsteps[{idx}]')
+                printStep(step, 'footstep_buffer.steps[i].')
+            for idx, ft in enumerate(foot):
+                print(f'foot[{idx}]')
+                printFoot(ft, 'foot[i].')
 
         # スウィング足の位置を設定
         if not stb0.stepping or self.time_to_landing > (stb0.duration - self.dsp_duration):
-            print("enter *E-1*")
-            foot[swg].pos_ref = stb0.foot_pos[swg].copy()
+            if self.debug > 1:
+                print("enter *E-1*")
+            foot[swg].pos_ref   = stb0.foot_pos[swg].copy()
             foot[swg].angle_ref = stb0.foot_angle[swg].copy()
-            foot[swg].ori_ref = stb0.foot_ori[swg]
+            foot[swg].ori_ref   = stb0.foot_ori[swg]
             foot[swg].contact_ref = True
         else:
-            print("enter *E-2*")
+            if self.debug > 1:
+                print("enter *E-2*")
             ts = (stb0.duration - self.dsp_duration) - self.time_to_landing
             tauv = stb0.duration - self.dsp_duration
             tauh = tauv - self.descend_duration
@@ -371,21 +389,23 @@ class SteppingController:
             foot[swg].pos_ref = qrel.apply(foot[swg].pos_ref - pivot) + pivot
             foot[swg].ori_ref = qrel * foot[swg].ori_ref
             foot[swg].angle_ref = foot[swg].ori_ref.as_euler('xyz')
-        for idx, step in enumerate(footstep.steps):
-            print(f'steps[{idx}]')
-            printStep(step, 'footstep.steps[i].')
-        for idx, step in enumerate(footstep_buffer.steps):
-            print(f'bsteps[{idx}]')
-            printStep(step, 'footstep_buffer.steps[i].')
-        print(f'sup:\t{sup}')
-        print(f'swg:\t{swg}')
-        for idx, ft in enumerate(foot):
-            print(f'foot[{idx}]')
-            printFoot(ft, 'foot[i].')
-        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
-        printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
-        printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
-        printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
-        printVec3(centroid.com_pos_ref, "centroid.com_pos_ref:\t")
-        printVec3(centroid.com_vel_ref, "centroid.com_vel_ref:\t")
-        print("End Of Update")
+        if self.debug > 2:
+            for idx, step in enumerate(footstep.steps):
+                print(f'steps[{idx}]')
+                printStep(step, 'footstep.steps[i].')
+            for idx, step in enumerate(footstep_buffer.steps):
+                print(f'bsteps[{idx}]')
+                printStep(step, 'footstep_buffer.steps[i].')
+            print(f'sup:\t{sup}')
+            print(f'swg:\t{swg}')
+            for idx, ft in enumerate(foot):
+                print(f'foot[{idx}]')
+                printFoot(ft, 'foot[i].')
+            printVec3(centroid.dcm_ref,     "centroid.dcm_ref:\t")
+            printVec3(centroid.dcm_target,  "centroid.dcm_target:\t")
+            printVec3(centroid.zmp_ref,     "centroid.zmp_ref:\t")
+            printVec3(centroid.zmp_target,  "centroid.zmp_target:\t")
+            printVec3(centroid.com_pos_ref, "centroid.com_pos_ref:\t")
+            printVec3(centroid.com_vel_ref, "centroid.com_vel_ref:\t")
+            print("End Of Update")
+        return True

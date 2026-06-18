@@ -196,13 +196,15 @@ class Stabilizer:
         centroid.com_pos_ref += centroid.com_vel_ref * timer.dt
 
     #CalcDcmDynamicsSimple(timer, param, None, foot, None, None, None)
-    def CalcDcmDynamicsSimple(self, timer, param, base, foot, theta, omega, centroid):
+    def CalcDcmDynamicsSimple(self, timer, param, centroid, no_dcm_gain=True, no_dcm_derivative=True):
         T = param.T
-        m = param.total_mass
+        # m = param.total_mass
         h = param.com_height
 
-        # centroid.zmp_ref = centroid.zmp_target + self.dcm_ctrl_gain * (centroid.dcm_ref - centroid.dcm_target)
-        centroid.zmp_ref = centroid.zmp_target.copy()
+        if no_dcm_gain:
+            centroid.zmp_ref = centroid.zmp_target.copy()
+        else:
+            centroid.zmp_ref = centroid.zmp_target + self.dcm_ctrl_gain * (centroid.dcm_ref - centroid.dcm_target)
 
         # calc DCM derivative
         dcm_d = (1.0 / T) * (centroid.dcm_ref - (centroid.zmp_ref + np.array([0.0, 0.0, h])))
@@ -210,8 +212,14 @@ class Stabilizer:
         # calc CoM acceleration
         centroid.com_acc_ref = (1.0 / T) * (dcm_d - centroid.com_vel_ref)
 
-        centroid.dcm_ref += dcm_d * timer.dt
-        # centroid.dcm_ref = centroid.dcm_target.copy()
+        #print("0:centroid.dcm_ref: ", centroid.dcm_ref)
+        #print("dcm_d: ", dcm_d)
+        #print("centroid.dcm_target: ", centroid.dcm_target)
+        if no_dcm_derivative:
+            centroid.dcm_ref = centroid.dcm_target.copy()
+        else:
+            centroid.dcm_ref += dcm_d * timer.dt
+        #print("1:centroid.dcm_ref: ", centroid.dcm_ref)
 
         # calc CoM velocity from dcm
         centroid.com_vel_ref = (1.0 / T) * (centroid.dcm_ref - centroid.com_pos_ref)
