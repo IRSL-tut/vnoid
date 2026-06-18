@@ -147,7 +147,7 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         Quaternion ori_rel = st0.foot_ori[sup].conjugate()* st1.foot_ori[swg];
         Vector3    pos_rel = st0.foot_ori[sup].conjugate()*(st1.foot_pos[swg] - st0.foot_pos[sup]);
         Vector3    dcm_rel = st0.foot_ori[sup].conjugate()*(st1.dcm - st0.foot_pos[sup]);
-
+        _printVector3(dcm_rel);
         // calc absolute landing position
         stb1.foot_pos  [sup] = stb0.foot_pos  [sup];
         stb1.foot_ori  [sup] = stb0.foot_ori  [sup];
@@ -156,7 +156,7 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         stb1.foot_ori  [swg] = stb0.foot_ori[sup]*ori_rel;
         stb1.foot_angle[swg] = ToRollPitchYaw(stb1.foot_ori[swg]);
         stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup]*dcm_rel;
-
+        _printVector3(stb1.dcm);
         // calc zmp
         double alpha = exp(stb0.duration/T);
         stb0.zmp = (1/(alpha - 1))*(alpha*stb0.dcm - stb1.dcm) - offset;
@@ -282,6 +282,8 @@ void SteppingController::Update(const Timer& timer, const Param& param, Footstep
         cerr << "bsteps[" << i << "]" << endl;
         printStep(footstep_buffer.steps[i]);
     }
+    _printVar(sup);
+    _printVar(swg);
     for(int i = 0; i < foot.size(); i++) {
         cerr << "foot[" << i << "]"  << endl;
         printFoot(foot[i]);

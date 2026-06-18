@@ -51,6 +51,12 @@ class Centroid:
             self.zmp_ref = np.array([0.0, 0.0, 0.0])
         if self.zmp_target is None:
             self.zmp_target = np.array([0.0, 0.0, 0.0])
+        if self.com_pos_ref is None:
+            self.com_pos_ref = np.array([0.0, 0.0, 0.0])
+        if self.com_vel_ref is None:
+            self.com_vel_ref = np.array([0.0, 0.0, 0.0])
+        if self.com_acc_ref is None:
+            self.com_acc_ref = np.array([0.0, 0.0, 0.0])
 
 @dataclass
 class Base:
@@ -144,6 +150,8 @@ class SteppingController:
         self.time_to_landing = 0.0
 
         self.debug = True
+        self.use_land_estimation = True
+
     def update(self, timer: Timer, param: Param, footstep: Footstep, footstep_buffer: Footstep, centroid: Centroid, base: Base, foot: List[Foot]):
         T = param.T
         offset = np.array([0.0, 0.0, param.com_height])
@@ -166,8 +174,8 @@ class SteppingController:
 
         if self.buffer_ready:
             print("buffer_ready")
-            st0 = footstep.steps[0]
-            st1 = footstep.steps[1]
+            #*001*st0 = footstep.steps[0]
+            #*001*st1 = footstep.steps[1]
             stb0 = footstep_buffer.steps[0]
             stb1 = footstep_buffer.steps[1]
 
@@ -175,7 +183,7 @@ class SteppingController:
             alpha_ref = math.exp(t_ref / T)
 
             xi0 = stb0.dcm[:2] - stb0.zmp[:2]
-            xi = centroid.dcm_ref[:2] - stb0.zmp[:2]
+            xi  = centroid.dcm_ref[:2] - stb0.zmp[:2]
 
             w = self.timing_adaptation_weight
             alpha = ((w * w * alpha_ref) + (np.linalg.norm(xi0) * np.linalg.norm(xi))) / ((w * w) + np.dot(xi0, xi0))
@@ -242,12 +250,11 @@ class SteppingController:
 
             stb0.dcm = centroid.dcm_ref.copy()
 
-            # 【バグ②の修正】基準を stb0 ではなく 計画値 st0 に変更
             ori_rel_inv = st0.foot_ori[sup].inv()
             ori_rel = ori_rel_inv * st1.foot_ori[swg]
             pos_rel = ori_rel_inv.apply(st1.foot_pos[swg] - st0.foot_pos[sup])
             dcm_rel = ori_rel_inv.apply(st1.dcm - st0.foot_pos[sup])
-
+            printVec3(dcm_rel, "dcm_rel:\t")
             stb1.foot_pos  [sup] = stb0.foot_pos  [sup].copy()
             stb1.foot_ori  [sup] = R.from_quat(stb0.foot_ori  [sup].as_quat()) ## = stb0.foot_ori  [sup]
             stb1.foot_angle[sup] = stb0.foot_angle[sup].copy()
@@ -255,7 +262,7 @@ class SteppingController:
             stb1.foot_ori  [swg] = stb0.foot_ori[sup] * ori_rel
             stb1.foot_angle[swg] = stb1.foot_ori[swg].as_euler('xyz')
             stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(dcm_rel)
-
+            printVec3(stb1.dcm, "stb1.dcm:\t")
             ## calc zmp
             alpha = np.exp(stb0.duration / T)
             if abs(alpha - 1.0) > eps:
@@ -281,17 +288,22 @@ class SteppingController:
             print(f'foot[{idx}]')
             printFoot(ft, 'foot[i].')
 
-        # 着地時の DCM を予測
-        printVec3(stb0.zmp, "stb0.zmp:\t")
-        printVec3(offset, "offset:\t")
-        printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
-        land_dcm = (stb0.zmp + offset) + math.exp(self.time_to_landing / T) * (centroid.dcm_ref - (stb0.zmp + offset))
-        print(f'time_to_landing:\t{self.time_to_landing:.6f}')
-        print(f'T:\t{T:.6f}')
-        printVec3(land_dcm, "land_dcm:\t")
-        # 着地調整（DCM ベース） - ここで st1 が本来の footstep.steps[1] を正しく参照するようになります
-        stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
-        stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
+        if self.use_land_estimation:
+            # 着地時の DCM を予測
+            printVec3(stb0.zmp, "stb0.zmp:\t")
+            printVec3(offset, "offset:\t")
+            printVec3(centroid.dcm_ref, "centroid.dcm_ref:\t")
+            land_dcm = (stb0.zmp + offset) + math.exp(self.time_to_landing / T) * (centroid.dcm_ref - (stb0.zmp + offset))
+            print(f'time_to_landing:\t{self.time_to_landing:.6f}')
+            print(f'T:\t{T:.6f}')
+            printVec3(land_dcm, "land_dcm:\t")
+            # 着地調整（DCM ベース） - ここで st1 が本来の footstep.steps[1] を正しく参照するようになります
+            stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
+            stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
+        else:
+            # No 着地調整
+            stb1.foot_pos[swg][0] = st1.foot_pos[swg][0]
+            stb1.foot_pos[swg][1] = st1.foot_pos[swg][1]
 
         # ベース向きは足の向きの中点
         angle_diff = foot[1].angle_ref[2] - foot[0].angle_ref[2]
@@ -301,9 +313,9 @@ class SteppingController:
         base.ori_ref = R.from_euler('xyz', base.angle_ref)
 
         # サポート足の位置を設定
-        foot[sup].pos_ref = stb0.foot_pos[sup].copy()
+        foot[sup].pos_ref   = stb0.foot_pos[sup].copy()
         foot[sup].angle_ref = stb0.foot_angle[sup].copy()
-        foot[sup].ori_ref = R.from_euler('xyz', foot[sup].angle_ref)
+        foot[sup].ori_ref   = R.from_euler('xyz', foot[sup].angle_ref)
         foot[sup].contact_ref = True
 
         print("before *E*")
@@ -316,6 +328,7 @@ class SteppingController:
         for idx, ft in enumerate(foot):
             print(f'foot[{idx}]')
             printFoot(ft, 'foot[i].')
+
         # スウィング足の位置を設定
         if not stb0.stepping or self.time_to_landing > (stb0.duration - self.dsp_duration):
             print("enter *E-1*")
@@ -364,6 +377,8 @@ class SteppingController:
         for idx, step in enumerate(footstep_buffer.steps):
             print(f'bsteps[{idx}]')
             printStep(step, 'footstep_buffer.steps[i].')
+        print(f'sup:\t{sup}')
+        print(f'swg:\t{swg}')
         for idx, ft in enumerate(foot):
             print(f'foot[{idx}]')
             printFoot(ft, 'foot[i].')
@@ -371,4 +386,6 @@ class SteppingController:
         printVec3(centroid.dcm_target, "centroid.dcm_target:\t")
         printVec3(centroid.zmp_ref, "centroid.zmp_ref:\t")
         printVec3(centroid.zmp_target, "centroid.zmp_target:\t")
+        printVec3(centroid.com_pos_ref, "centroid.com_pos_ref:\t")
+        printVec3(centroid.com_vel_ref, "centroid.com_vel_ref:\t")
         print("End Of Update")

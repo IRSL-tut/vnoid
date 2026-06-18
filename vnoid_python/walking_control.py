@@ -3,6 +3,7 @@ import numpy as np
 from footstep_planner import FootstepPlanner, Step, Footstep, Param, Ground, printStep
 from stepping_controller import SteppingController, Timer, Centroid, Base, Foot
 # from hrp2_footplane import generate_5step_walking_plan
+from stabilizer import Stabilizer
 
 class WalkingControl:
 
@@ -197,9 +198,9 @@ class WalkingControl:
         self.timer    = Timer()
         self.timer.dt = self.dt
         self.centroid = Centroid()
-        self.centroid.com_pos_ref = np.array([0., 0., self.param.com_height])
-        self.centroid.com_pos     = np.array([0., 0., self.param.com_height])
+        #self.centroid.com_pos     = np.array([0., 0., self.param.com_height])
         #self.centroid.dcm_target  = np.array([0., 0., self.param.com_height])
+        self.centroid.com_pos_ref = np.array([0., 0., self.param.com_height])
         self.centroid.dcm_ref     = np.array([0., 0., self.param.com_height])
         self.base     = Base()
         self.feet     = [Foot(), Foot()]  # [左足, 右足]
@@ -213,6 +214,9 @@ class WalkingControl:
 
         self.current_step = 0
         self.step_progress = 0.0
+
+        self.stabilizer = Stabilizer()
+
         print("✓ SteppingController initialized")
 
     def setup_controller(self):
@@ -234,8 +238,8 @@ class WalkingControl:
         #>footstep_buffer.steps.push_back(footstep.steps[0]);
         #>footstep_buffer.steps.push_back(footstep.steps[1]);
         lst = []
-        lst.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) )
-        lst.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=1) )
+        lst.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #0
+        lst.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=1) ) #1
         lst[0].foot_pos[0] = self.feet[0].pos_ref;
         lst[0].foot_pos[1] = self.feet[1].pos_ref;
         lst[0].dcm = self.centroid.dcm_ref;
@@ -271,10 +275,12 @@ class WalkingControl:
         #>step.stride = 0.0;
         #>step.turn   = 0.0;
         #>footstep.steps.push_back(step);
-        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) )
-        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) )
-        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) )
-        self.footstep.steps.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) )
+        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #2
+        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #3
+        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #4
+        self.footstep.steps.append( Step(stride=0.1, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #5
+        self.footstep.steps.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #6
+        self.footstep.steps.append( Step(stride=0.0, sway=0.0, spacing=0.2, turn=0.0, climb=0.0, duration=0.5, side=0) ) #7
 
         print('footstep(pre)')
         for idx, step in enumerate(self.footstep.steps):
@@ -302,10 +308,6 @@ class WalkingControl:
             if hasattr(self, 'stepping_controller') and self.stepping_controller:
                 ##self.timer.time = self.time
 
-                # 決定論的（オープンループ）に歩行させるため、前回の出力を今回の参照としてフィードバック
-                ## self.centroid.dcm_ref = self.centroid.dcm_target.copy()
-                ## self.centroid.zmp_ref = self.centroid.zmp_target.copy()
-
                 # 軌道更新
                 self.stepping_controller.update(
                     self.timer,
@@ -319,6 +321,11 @@ class WalkingControl:
 
                 # 逆運動学の計算と指令
                 #> self._update_joint_targets_from_feet()
+
+                # 決定論的（オープンループ）に歩行させるため、前回の出力を今回の参照としてフィードバック
+                self.centroid.dcm_ref = self.centroid.dcm_target.copy()
+                self.centroid.zmp_ref = self.centroid.zmp_target.copy()
+                #self.stabilizer.CalcDcmDynamicsSimple(self.timer, self.param, None, None, None, None, self.centroid)
 
         except Exception as e:
             print(f"Warning in stepping controller: {e}")

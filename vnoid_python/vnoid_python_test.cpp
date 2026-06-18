@@ -72,8 +72,8 @@ int main(void)
     foot[1].pos_ref = Vector3(0.0,  0.2/2.0, 0.0);
 
     // init footsteps
-    footstep.steps.push_back(Step(0.0, 0.0, 0.2, 0.0, 0.0, 0.5, 0));
-    footstep.steps.push_back(Step(0.0, 0.0, 0.2, 0.0, 0.0, 0.5, 1));
+    footstep.steps.push_back(Step(0.0, 0.0, 0.2, 0.0, 0.0, 0.5, 0)); //0
+    footstep.steps.push_back(Step(0.0, 0.0, 0.2, 0.0, 0.0, 0.5, 1)); //1
     // foot placement and DCM of the initial step must be specified
     footstep.steps[0].foot_pos[0] = foot[0].pos_ref;
     footstep.steps[0].foot_pos[1] = foot[1].pos_ref;
@@ -120,12 +120,14 @@ int main(void)
         step.spacing  = 0.20;
         step.climb    = 0.0;
         step.duration = 0.5;
-        footstep.steps.push_back(step);
-        footstep.steps.push_back(step);
-        footstep.steps.push_back(step);
+        footstep.steps.push_back(step); //2
+        footstep.steps.push_back(step); //3
+        footstep.steps.push_back(step); //4
+        footstep.steps.push_back(step); //5
         step.stride = 0.0;
         step.turn   = 0.0;
-        footstep.steps.push_back(step);
+        footstep.steps.push_back(step); //6
+        footstep.steps.push_back(step); //7
 
         cerr << "footstep(pre)" << endl;
         for(int i = 0; i < footstep.steps.size(); i++) {
@@ -151,7 +153,7 @@ int main(void)
         cerr << endl;
     }
 
-    for(long _i_ = 0; _i_ < 550; _i_++) {
+    for(long _i_ = 0; _i_ < 360; _i_++) {
 
 #if 0
     if(timer.count % 10 == 0) {
@@ -170,6 +172,7 @@ int main(void)
         footstep.steps.push_back(step);
         step.stride = 0.0;
         step.turn   = 0.0;
+        footstep.steps.push_back(step);
         footstep.steps.push_back(step);
 
         cerr << "footstep(pre)" << endl;
@@ -200,6 +203,8 @@ int main(void)
 
     //// stabilizer performs balance feedback
     //stabilizer         .Update(timer, param, /*footstep_buffer,*/ centroid, base, foot);
+    centroid.dcm_ref = centroid.dcm_target;
+    centroid.zmp_ref = centroid.zmp_target;
 
     //// calc CoM IK
     //ik_solver.Comp(&fk_solver, param, centroid, base, hand, foot, joint);
