@@ -81,6 +81,8 @@ def printStep(step, prefix='step.'):
     print(f'{prefix}tbegin:\t{step.tbegin:.6f}')
     print(f'{prefix}foot_pos[0]:\t' + fmtVec3(step.foot_pos[0]))
     print(f'{prefix}foot_pos[1]:\t' + fmtVec3(step.foot_pos[1]))
+    print(f'{prefix}foot_angle[0]:\t' + fmtVec3(step.foot_angle[0]))
+    print(f'{prefix}foot_angle[1]:\t' + fmtVec3(step.foot_angle[1]))
     print(f'{prefix}zmp:\t'+ fmtVec3(step.zmp))
     print(f'{prefix}dcm:\t'+ fmtVec3(step.dcm))
 

@@ -6,134 +6,20 @@ import math
 import numpy as np
 from dataclasses import dataclass
 from typing import List
-from scipy.spatial.transform import Rotation as R
-# TODO R => coordinates
-from footstep_planner import Step, Footstep, Param, Ground, rotate_vector, printStep, printVec3
 
-# TODO pos + angle => coordinates
+from vnoid_types import Timer, Centroid, Base, Foot, Step, Footstep, Param, Ground, printStep, printVec3, printFoot
+from vnoid_types import coordinates, fv
 
-pi = 3.14159265358979
+pi = math.pi
 eps = 1.0e-10
 
-@dataclass
-class Timer:
-    """タイマー情報"""
-    time: float = 0.0
-    count: int = 0
-    dt: float = 0.001
-    def CountUp(self):
-        self.count += 1
-        self.time += self.dt
-
-@dataclass
-class Centroid:
-    """重心情報"""
-    dcm_ref: np.ndarray = None       # 参考 DCM
-    dcm_target: np.ndarray = None    # 目標 DCM
-    zmp_ref: np.ndarray = None       # 参考 ZMP
-    zmp_target: np.ndarray = None    # 目標 ZMP
-    ####
-    force_ref:  np.ndarray = None  #/< reference force
-    moment_ref: np.ndarray = None  #/< reference moment
-    zmp:        np.ndarray = None  #/< current ZMP
-    dcm:        np.ndarray = None  #/< DCM (divergent component of motion)
-    com_pos: np.ndarray = None      # 目標? CoM
-    com_pos_ref: np.ndarray = None # 参考 CoM
-    com_vel_ref: np.ndarray = None #/< reference velocity of CoM
-    com_acc_ref: np.ndarray = None #/< reference acceleration of CoMxo
-
-    def __post_init__(self):
-        if self.dcm_ref is None:
-            self.dcm_ref = np.array([0.0, 0.0, 0.0])
-        if self.dcm_target is None:
-            self.dcm_target = np.array([0.0, 0.0, 0.0])
-        if self.zmp_ref is None:
-            self.zmp_ref = np.array([0.0, 0.0, 0.0])
-        if self.zmp_target is None:
-            self.zmp_target = np.array([0.0, 0.0, 0.0])
-        if self.com_pos_ref is None:
-            self.com_pos_ref = np.array([0.0, 0.0, 0.0])
-        if self.com_vel_ref is None:
-            self.com_vel_ref = np.array([0.0, 0.0, 0.0])
-        if self.com_acc_ref is None:
-            self.com_acc_ref = np.array([0.0, 0.0, 0.0])
-
-@dataclass
-class Base:
-    """ベース（ボディ）情報"""
-    angle: np.ndarray = None         # 現在の角度 [roll, pitch, yaw]
-    angle_ref: np.ndarray = None     # 参考角度
-    ori: R = None                    # 現在の向き
-    ori_ref: R = None                # 参考向き
-
-    pos:        np.ndarray = None #/< position
-    pos_ref:    np.ndarray = None #/< reference position
-    vel:        np.ndarray = None #/< velocity
-    vel_ref:    np.ndarray = None #/< reference velocity
-    angvel:     np.ndarray = None #/< current angular velocity
-    angvel_ref: np.ndarray = None #/< reference angular velocity
-    acc:        np.ndarray = None
-    acc_ref:    np.ndarray = None #/< reference acceleration
-    angacc:     np.ndarray = None
-    angacc_ref: np.ndarray = None #/< reference angular acceleration
-
-    def __post_init__(self):
-        if self.angle is None:
-            self.angle = np.array([0.0, 0.0, 0.0])
-        if self.angle_ref is None:
-            self.angle_ref = np.array([0.0, 0.0, 0.0])
-        if self.ori is None:
-            self.ori = R.from_euler('xyz', [0, 0, 0])
-        if self.ori_ref is None:
-            self.ori_ref = R.from_euler('xyz', [0, 0, 0])
-
-
-@dataclass
-class Foot:
-    """足の情報"""
-    pos_ref: np.ndarray = None       # 参考位置
-    angle_ref: np.ndarray = None     # 参考角度 [roll, pitch, yaw]
-    ori_ref: R = None                # 参考向き
-    contact_ref: bool = False        # 接触フラグ
-#>bool        contact;      ///< current contact state (true if foot is in contact with the ground)
-#>bool        contact_ref;  ///< reference contact state
-#>double      balance;      ///< current balance ratio [0.0, 1.0].  indicates the ratio of vertical reaction force applied to this foot
-#>double      balance_ref;  ///< reference balance ratio [0.0, 1.0]
-#>Vector3     pos;          ///< position
-#>Vector3     pos_ref;      ///< reference position
-#>Quaternion  ori;          ///< orientation in quaternion
-#>Quaternion  ori_ref;      ///< reference orientation in quaternion
-#>Vector3     angle;        ///< orientation in roll-pitch-yaw
-#>Vector3     angle_ref;    ///< reference orientation in roll-pitch-yaw
-#>Vector3     vel_ref;      ///< reference velocity
-#>Vector3     angvel_ref;   ///< reference angular velocity
-#>Vector3     acc_ref;      ///< reference acceleration
-#>Vector3     angacc_ref;   ///< reference angular acceleration
-#>Vector3     force;        ///< ground reaction force acting on this foot
-#>Vector3     force_ref;    ///< reference ground reaction force
-#>Vector3     moment;       ///< ground reaction moment acting on this foot
-#>Vector3     moment_ref;   ///< reference ground reaction moment
-#>Vector3     zmp;          ///< ZMP (i.e., center-of-pressure) of this foot
-#>Vector3     zmp_ref;      ///< reference ZMP of this foot
-
-    def __post_init__(self):
-        if self.pos_ref is None:
-            self.pos_ref = np.array([0.0, 0.0, 0.0])
-        if self.angle_ref is None:
-            self.angle_ref = np.array([0.0, 0.0, 0.0])
-        if self.ori_ref is None:
-            self.ori_ref = R.from_euler('xyz', [0, 0, 0])
-
-def fmtVec3(vec3):
-    return f'({vec3[0]:.6f}, {vec3[1]:.6f}, {vec3[2]:.6f} )'
-
-def printFoot(foot, prefix=""):
-    if foot.contact_ref:
-        print(f'{prefix}contact_ref:\t{1}')
-    else:
-        print(f'{prefix}contact_ref:\t{0}')
-    print(f'{prefix}pos_ref:\t' + fmtVec3(foot.pos_ref))
-    print(f'{prefix}angle_ref:\t' + fmtVec3(foot.angle_ref))
+## TODO step_param
+#>        self.swing_height = 0.05              # スウィング足の高さ
+#>        self.swing_tilt = 0.0                 # スウィング足の傾き
+#>        self.dsp_duration = 0.1               # ダブルサポート期間
+#>        self.descend_duration = 0.0           # 降下期間
+#>        self.descend_depth = 0.0              # 降下深さ
+#>        self.timing_adaptation_weight = 1.0   # タイミング適応の重み
 
 class SteppingController:
     """リアルタイム足の軌跡制御"""
@@ -151,6 +37,7 @@ class SteppingController:
 
         self.debug = 4 #
         self.use_land_estimation = True
+        self.use_timing_adaptation = True
 
     def update(self, timer: Timer, param: Param, footstep: Footstep, footstep_buffer: Footstep, centroid: Centroid, base: Base, foot: List[Foot]):
         T = param.T
@@ -248,29 +135,45 @@ class SteppingController:
             stb0.stepping = st0.stepping
             stb0.duration = st0.duration
 
-            stb0.foot_pos  [sup] = foot[sup].pos_ref.copy()
-            stb0.foot_angle[sup] = np.array([0.0, 0.0, foot[sup].angle_ref[2]])
-            stb0.foot_ori  [sup] = R.from_euler('xyz', stb0.foot_angle[sup])
+            #stb0.foot_pos  [sup] = foot[sup].pos_ref.copy()
+            #stb0.foot_angle[sup] = np.array([0.0, 0.0, foot[sup].angle_ref[2]])
+            #stb0.foot_ori  [sup] = R.from_euler('xyz', stb0.foot_angle[sup])
+            stb0.foot_coords[sup].pos = foot[sup].coords_ref.pos.copy()
+            stb0.foot_coords[sup].setRPY( np.array([0., 0, foot[sup].coords_ref.RPY[2]]) )
 
-            stb0.foot_pos  [swg] = foot[swg].pos_ref.copy()
-            stb0.foot_angle[swg] = np.array([0.0, 0.0, foot[swg].angle_ref[2]])
-            stb0.foot_ori  [swg] = R.from_euler('xyz', stb0.foot_angle[swg])
+            #stb0.foot_pos  [swg] = foot[swg].pos_ref.copy()
+            #stb0.foot_angle[swg] = np.array([0.0, 0.0, foot[swg].angle_ref[2]])
+            #stb0.foot_ori  [swg] = R.from_euler('xyz', stb0.foot_angle[swg])
+            stb0.foot_coords[swg].pos = foot[swg].coords_ref.pos.copy()
+            stb0.foot_coords[swg].setRPY( np.array([0., 0, foot[swg].coords_ref.RPY[2]]) )
 
             stb0.dcm = centroid.dcm_ref.copy()
 
-            ori_rel_inv = st0.foot_ori[sup].inv()
-            ori_rel = ori_rel_inv * st1.foot_ori[swg]
-            pos_rel = ori_rel_inv.apply(st1.foot_pos[swg] - st0.foot_pos[sup])
-            dcm_rel = ori_rel_inv.apply(st1.dcm - st0.foot_pos[sup])
+            #ori_rel_inv = st0.foot_ori[sup].inv()
+            #ori_rel = ori_rel_inv * st1.foot_ori[swg]
+            #pos_rel = ori_rel_inv.apply(st1.foot_pos[swg] - st0.foot_pos[sup])
+            #dcm_rel = ori_rel_inv.apply(st1.dcm - st0.foot_pos[sup])
+            ori_rel_inv = coordinates(np.transpose(st0.foot_coords[sup].rot))
+            ori_rel = ori_rel_inv.get_transformed(coordinates(st1.foot_coords[swg].rot))
+            pos_rel = ori_rel_inv.transform_vector(st1.foot_coords[swg].pos - st0.foot_coords[sup].pos)
+            dcm_rel = ori_rel_inv.transform_vector(st1.dcm - st0.foot_coords[sup].pos)
+
             if self.debug > 3:
                 printVec3(dcm_rel, "dcm_rel:\t")
-            stb1.foot_pos  [sup] = stb0.foot_pos  [sup].copy()
-            stb1.foot_ori  [sup] = R.from_quat(stb0.foot_ori  [sup].as_quat()) ## = stb0.foot_ori  [sup]
-            stb1.foot_angle[sup] = stb0.foot_angle[sup].copy()
-            stb1.foot_pos  [swg] = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(pos_rel)
-            stb1.foot_ori  [swg] = stb0.foot_ori[sup] * ori_rel
-            stb1.foot_angle[swg] = stb1.foot_ori[swg].as_euler('xyz')
-            stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(dcm_rel)
+
+            #stb1.foot_pos  [sup] = stb0.foot_pos  [sup].copy()
+            #stb1.foot_ori  [sup] = R.from_quat(stb0.foot_ori  [sup].as_quat()) ## = stb0.foot_ori  [sup]
+            #stb1.foot_angle[sup] = stb0.foot_angle[sup].copy()
+            stb1.foot_coords[sup] = stb0.foot_coords[sup].copy()
+            #stb1.foot_pos  [swg] = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(pos_rel)
+            #stb1.foot_ori  [swg] = stb0.foot_ori[sup] * ori_rel
+            #stb1.foot_angle[swg] = stb1.foot_ori[swg].as_euler('xyz')
+            ori_rel.pos = pos_rel
+            stb1.foot_coords[swg] = stb0.foot_coords[sup].copy().transform(ori_rel)
+
+            #stb1.dcm = stb0.foot_pos[sup] + stb0.foot_ori[sup].apply(dcm_rel)
+            stb1.dcm = stb0.foot_coords[sup].transform_vector(dcm_rel)
+
             if self.debug > 3:
                 printVec3(stb1.dcm, "stb1.dcm:\t")
             ## calc zmp
@@ -313,24 +216,41 @@ class SteppingController:
                 print(f'time_to_landing:\t{self.time_to_landing:.6f}')
                 printVec3(land_dcm, "land_dcm:\t")
             # 着地調整（DCM ベース） - ここで st1 が本来の footstep.steps[1] を正しく参照するようになります
-            stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
-            stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
+            #stb1.foot_pos[swg][0] = land_dcm[0] - (st1.dcm[0] - st1.foot_pos[swg][0])
+            #stb1.foot_pos[swg][1] = land_dcm[1] - (st1.dcm[1] - st1.foot_pos[swg][1])
+            pos_ = stb1.foot_coords[swg].pos
+            pos_[0] = land_dcm[0] - (st1.dcm[0] - st1.foot_coords[swg].pos[0])
+            pos_[1] = land_dcm[1] - (st1.dcm[1] - st1.foot_coords[swg].pos[1])
+            stb1.foot_coords[swg].pos = pos_
+            #print("[0] ", land_dcm[0], st1.dcm[0], st1.foot_coords[swg].pos[0], ( land_dcm[0] - (st1.dcm[0] - st1.foot_coords[swg].pos[0]) ))
+            #print("[1] ", land_dcm[1], st1.dcm[1], st1.foot_coords[swg].pos[1], ( land_dcm[1] - (st1.dcm[1] - st1.foot_coords[swg].pos[1]) ))
+            #print("cds: ", stb1.foot_coords[swg].pos[0], stb1.foot_coords[swg].pos[1])
         else:
             # No 着地調整
-            stb1.foot_pos[swg][0] = st1.foot_pos[swg][0]
-            stb1.foot_pos[swg][1] = st1.foot_pos[swg][1]
+            #stb1.foot_pos[swg][0] = st1.foot_pos[swg][0]
+            #stb1.foot_pos[swg][1] = st1.foot_pos[swg][1]
+            pos_ = stb1.foot_coords[swg].pos
+            pos_[0] = st1.foot_coords[swg].pos[0]
+            pos_[1] = st1.foot_coords[swg].pos[1]
+            stb1.foot_coords[swg].pos = pos_
 
         # ベース向きは足の向きの中点
-        angle_diff = foot[1].angle_ref[2] - foot[0].angle_ref[2]
+        #angle_diff = foot[1].angle_ref[2] - foot[0].angle_ref[2]
+        angle_diff = foot[1].coords_ref.RPY[2] - foot[0].coords_ref.RPY[2]
         while angle_diff > pi: angle_diff -= 2.0 * pi
         while angle_diff < -pi: angle_diff += 2.0 * pi
-        base.angle_ref[2] = foot[0].angle_ref[2] + angle_diff / 2.0
-        base.ori_ref = R.from_euler('xyz', base.angle_ref)
+        #base.angle_ref[2] = foot[0].angle_ref[2] + angle_diff / 2.0
+        #base.ori_ref = R.from_euler('xyz', base.angle_ref)
+        rpy = base.coords_ref.RPY
+        rpy[2] = foot[0].coords_ref.RPY[2] + angle_diff/2.0
+        base.coords_ref.setRPY(rpy)
 
         # サポート足の位置を設定
-        foot[sup].pos_ref   = stb0.foot_pos[sup].copy()
-        foot[sup].angle_ref = stb0.foot_angle[sup].copy()
-        foot[sup].ori_ref   = R.from_euler('xyz', foot[sup].angle_ref)
+        #foot[sup].pos_ref   = stb0.foot_pos[sup].copy()
+        #foot[sup].angle_ref = stb0.foot_angle[sup].copy()
+        #foot[sup].ori_ref   = R.from_euler('xyz', foot[sup].angle_ref)
+        #foot[sup].contact_ref = True
+        foot[sup].coords_ref  = stb0.foot_coords[sup].copy()
         foot[sup].contact_ref = True
 
         if self.debug > 2:
@@ -349,9 +269,10 @@ class SteppingController:
         if not stb0.stepping or self.time_to_landing > (stb0.duration - self.dsp_duration):
             if self.debug > 1:
                 print("enter *E-1*")
-            foot[swg].pos_ref   = stb0.foot_pos[swg].copy()
-            foot[swg].angle_ref = stb0.foot_angle[swg].copy()
-            foot[swg].ori_ref   = stb0.foot_ori[swg]
+            #foot[swg].pos_ref   = stb0.foot_pos[swg].copy()
+            #foot[swg].angle_ref = stb0.foot_angle[swg].copy()
+            #foot[swg].ori_ref   = stb0.foot_ori[swg]
+            foot[swg].coords_ref = stb0.foot_coords[swg].copy()
             foot[swg].contact_ref = True
         else:
             if self.debug > 1:
@@ -365,30 +286,47 @@ class SteppingController:
             thetav = 2.0 * pi * sv
             thetah = 2.0 * pi * sh
 
-            ch = (thetah - np.sin(thetah)) / (2.0 * pi) if sh < 1.0 else 1.0
-            cv = (1.0 - np.cos(thetav)) / 2.0
+            ch  = (thetah - np.sin(thetah)) / (2.0 * pi) if sh < 1.0 else 1.0
+            cv  = (1.0 - np.cos(thetav)) / 2.0
             cv2 = (1.0 - np.cos(thetav / 2.0)) / 2.0
-            cw = np.sin(thetah)
+            cw  = np.sin(thetah)
 
-            turn = stb1.foot_angle[swg] - stb0.foot_angle[swg]
-            while turn[2] > pi: turn[2] -= 2.0 * pi
+            #turn = stb1.foot_angle[swg] - stb0.foot_angle[swg]
+            turn = stb1.foot_coords[swg].RPY - stb0.foot_coords[swg].RPY
+            while turn[2] >  pi: turn[2] -= 2.0 * pi
             while turn[2] < -pi: turn[2] += 2.0 * pi
 
-            tilt = stb0.foot_ori[swg].apply(np.array([0.0, self.swing_tilt, 0.0]))
+            ### TODO
+            # tilt = stb0.foot_ori[swg].apply(np.array([0.0, self.swing_tilt, 0.0]))
 
-            foot[swg].pos_ref = (1.0 - ch) * stb0.foot_pos[swg] + ch * stb1.foot_pos[swg]
-            foot[swg].pos_ref[2] += (cv * (self.swing_height + 0.5 * self.descend_depth) - cv2 * self.descend_depth)
-            foot[swg].angle_ref = stb0.foot_angle[swg] + ch * turn + cw * tilt
-            foot[swg].ori_ref = R.from_euler('xyz', foot[swg].angle_ref)
+            #foot[swg].pos_ref = (1.0 - ch) * stb0.foot_pos[swg] + ch * stb1.foot_pos[swg]
+            #foot[swg].pos_ref[2] += (cv * (self.swing_height + 0.5 * self.descend_depth) - cv2 * self.descend_depth)
+            #foot[swg].angle_ref = stb0.foot_angle[swg] + ch * turn + cw * tilt
+            #foot[swg].ori_ref = R.from_euler('xyz', foot[swg].angle_ref)
+            pos_ = (1.0 - ch) * stb0.foot_coords[swg].pos  +  ch * stb1.foot_coords[swg].pos
+            pos_[2] += (cv * (self.swing_height + 0.5 * self.descend_depth) - cv2 * self.descend_depth)
+            foot[swg].coords_ref.pos = pos_
+            rpy_ = stb0.foot_coords[swg].RPY + ch * turn
+            foot[swg].coords_ref.setRPY(rpy_)
             foot[swg].contact_ref = False
 
             # 【バグ③の修正】SciPyの乗算規則（左が先、右が後）に合わせて C++ (Q_act.inv() が先、Q_ref が後) を表現
-            qrel = R.from_euler('xyz', base.angle_ref) * R.from_euler('xyz', [base.angle[0], base.angle[1], base.angle_ref[2]]).inv()
+            #qrel = R.from_euler('xyz', base.angle_ref) * R.from_euler('xyz', [base.angle[0], base.angle[1], base.angle_ref[2]]).inv()
+            base_angle     = base.coords.RPY
+            base_angle_ref = base.coords_ref.RPY
+            qrel = coordinates(); qrel.setRPY(base_angle_ref)
+            b_ = coordinates(); b_.setRPY( np.array([base_angle[0], base_angle[1], base_angle_ref[2]]) ); b_.inverse()
+            qrel.transform(b_)
             pivot = centroid.zmp_ref
 
-            foot[swg].pos_ref = qrel.apply(foot[swg].pos_ref - pivot) + pivot
-            foot[swg].ori_ref = qrel * foot[swg].ori_ref
-            foot[swg].angle_ref = foot[swg].ori_ref.as_euler('xyz')
+            #foot[swg].pos_ref   = qrel.apply(foot[swg].pos_ref - pivot) + pivot
+            #foot[swg].ori_ref   = qrel * foot[swg].ori_ref
+            #foot[swg].angle_ref = foot[swg].ori_ref.as_euler('xyz')
+            pos_ref = qrel.transform_vector((foot[swg].coords_ref.pos - pivot) + pivot)
+            cds = coordinates(foot[swg].coords_ref.rot)
+            cds.transform(qrel)
+            cds.pos = pos_ref
+            foot[swg].coords_ref = cds
         if self.debug > 2:
             for idx, step in enumerate(footstep.steps):
                 print(f'steps[{idx}]')
